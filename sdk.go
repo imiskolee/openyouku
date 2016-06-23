@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -20,7 +21,7 @@ type SDK struct {
 func (sdk *SDK) init() {
 }
 
-func (sdk *SDK) Get(action string, params map[string]interface{}) *Response {
+func (sdk *SDK) Get(action string, params map[string]string) (*Response, error) {
 
 	sysParam := &SysParams{}
 	sysParam.Action = action
@@ -29,27 +30,33 @@ func (sdk *SDK) Get(action string, params map[string]interface{}) *Response {
 	sysParam.Timestamp = fmt.Sprint(time.Now().Unix())
 	sysParam.Version = "3.0"
 
-	signParam := sysParam.SignParm(sdk.ClientSecret)
+	signParam := sysParam.SignParm(sdk.ClientSecret, params)
 
 	jsonData, _ := json.Marshal(signParam)
 
-	fmt.Fprintln(os.Stderr, string(jsonData))
+	values := make(url.Values)
 
-	uri := fmt.Sprintf("opensysparams=%s&title=%s", jsonData, "test")
+	for k, v := range params {
+		values.Set(k, v)
+	}
 
-	//	uri = url.QueryEscape(uri)
+	uri := fmt.Sprintf("opensysparams=%s&%s", jsonData, values.Encode())
 
 	url := "https://openapi.youku.com/router/rest.json?" + uri
 
-	fmt.Fprintln(os.Stderr, url)
+	resp, err := http.Get(url)
 
-	resp, _ := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
 
 	allBody, _ := ioutil.ReadAll(resp.Body)
 
 	fmt.Fprintln(os.Stderr, string(allBody))
 
-	return nil
+	return nil, nil
 }
 
 func (sdk *SDK) Post(action string, params map[string]interface{}) *Response {
