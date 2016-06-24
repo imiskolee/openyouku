@@ -1,6 +1,13 @@
 package openyouku
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"mime/multipart"
+	"net/http"
+	"os"
+)
 
 type UploaderParam struct {
 	Title      string        `json:"title"`
@@ -48,6 +55,45 @@ func (uploader *Uploader) doUpload() {}
 
 func (uploader *Uploader) Start() {
 
-	uploader.sdk.Get("youku.api.vod.upload.video", uploader.apiParam)
+	resp, err := uploader.sdk.Get("youku.api.vod.upload.video", uploader.apiParam)
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	data, ok := resp.Data.(map[string]interface{})
+
+	if !ok {
+		return
+	}
+
+	uploadURL := data["upload_url"].(string)
+	//token := data["token"].(string)
+	uploadURL = uploadURL + "?id=" + data["fid"].(string) + "&sign=" + data["token"].(string)
+
+	fmt.Fprintln(os.Stderr, resp)
+	postBuffer := bytes.NewBufferString("")
+
+	form := multipart.NewWriter(postBuffer)
+	file, _ := form.CreateFormFile("file", "file.mp4")
+	file.Write(uploader.content)
+	client := &http.Client{}
+
+	form.Close()
+
+	request, err := http.NewRequest("POST", uploadURL, postBuffer)
+	if err != nil {
+		return
+	}
+
+	//request.Header.Add("Accept-Encoding", "gzip, deflate")
+	request.Header.Set("Content-Type", form.FormDataContentType())
+
+	rsp, _ := client.Do(request)
+
+	allBody, _ := ioutil.ReadAll(rsp.Body)
+
+	fmt.Fprintln(os.Stderr, string(allBody))
 
 }

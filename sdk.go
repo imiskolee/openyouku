@@ -43,6 +43,7 @@ func (sdk *SDK) Get(action string, params map[string]string) (*Response, error) 
 	uri := fmt.Sprintf("opensysparams=%s&%s", jsonData, values.Encode())
 
 	url := "https://openapi.youku.com/router/rest.json?" + uri
+	fmt.Fprintln(os.Stderr, url)
 
 	resp, err := http.Get(url)
 
@@ -54,9 +55,14 @@ func (sdk *SDK) Get(action string, params map[string]string) (*Response, error) 
 
 	allBody, _ := ioutil.ReadAll(resp.Body)
 
-	fmt.Fprintln(os.Stderr, string(allBody))
+	fmt.Println(string(allBody))
 
-	return nil, nil
+	response := &Response{}
+
+	err = json.Unmarshal(allBody, response)
+
+	return response, err
+
 }
 
 func (sdk *SDK) Post(action string, params map[string]interface{}) *Response {
