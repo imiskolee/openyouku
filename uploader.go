@@ -2,8 +2,11 @@ package openyouku
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -47,32 +50,27 @@ func (uploader *Uploader) Set(k, v string) {
 //获取上传权限
 func (uploader *Uploader) getUploadToken() {}
 
-//分片
-func (uploader *Uploader) makeSlice() {}
-
 //开始上传
 func (uploader *Uploader) doUpload() {}
 
-func (uploader *Uploader) Start() {
+func (uploader *Uploader) Start() (map[string]interface{}, error) {
 
 	resp, err := uploader.sdk.Get("youku.api.vod.upload.video", uploader.apiParam)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return
+		return nil, err
 	}
 
 	data, ok := resp.Data.(map[string]interface{})
 
 	if !ok {
-		return
+		return nil, errors.New("DATA EERROR")
 	}
-
 	uploadURL := data["upload_url"].(string)
 	//token := data["token"].(string)
 	uploadURL = uploadURL + "?id=" + data["fid"].(string) + "&sign=" + data["token"].(string)
 
-	fmt.Fprintln(os.Stderr, resp)
 	postBuffer := bytes.NewBufferString("")
 
 	form := multipart.NewWriter(postBuffer)
@@ -84,16 +82,23 @@ func (uploader *Uploader) Start() {
 
 	request, err := http.NewRequest("POST", uploadURL, postBuffer)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	//request.Header.Add("Accept-Encoding", "gzip, deflate")
 	request.Header.Set("Content-Type", form.FormDataContentType())
 
 	rsp, _ := client.Do(request)
 
 	allBody, _ := ioutil.ReadAll(rsp.Body)
 
-	fmt.Fprintln(os.Stderr, string(allBody))
+	log.Println("[Uploader]", string(allBody))
 
+	apiResp := &Response{}
+
+	err = json.Unmarshal(allBody, apiResp)
+
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }

@@ -29,6 +29,8 @@ func TestUploader(t *testing.T) {
 	fmt.Fprintln(os.Stderr, e, len(b))
 	//b := []byte{1, 2, 3}
 	uploader := sdk.GetUploader("test.mp4", b)
-	uploader.Start()
+	r, e := uploader.Start()
+
+	fmt.Fprintln(os.Stderr, r, e)
 
 }
